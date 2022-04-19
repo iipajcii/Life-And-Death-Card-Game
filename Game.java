@@ -6,6 +6,10 @@ class Game {
 		try {
 			Communication communication = new Communication();
 			communication.connectToServer();
+			communication.greetServer();
+			communication.startPeerServer();
+			communication.requestServerToStartGame();
+			// communication.receiveMessage();
 		}
 		catch(Exception e){
 			System.out.println("Failed to Connect to Server");
