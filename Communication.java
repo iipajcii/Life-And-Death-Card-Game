@@ -17,6 +17,16 @@ class Communication {
 
 	Message receivedMessage = new Message();
 
+	public InetSocketAddress getPeerServerInetSocketAddress(){
+		try {
+			return new InetSocketAddress(InetAddress.getLocalHost(), this.serverSocketNumber);
+		}
+		catch(IOException ex){
+			ex.printStackTrace();
+		}
+		return null;
+	}
+
 	public void connectToServer() throws Exception {
 		try {
 			socket = new Socket(InetAddress.getLocalHost(), serverSocketNumber);
