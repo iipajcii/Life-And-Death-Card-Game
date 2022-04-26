@@ -42,6 +42,16 @@ class Communication {
 		m.task = "Start Game";
 		this.sendMessage(m);
 		Message receivedMessage = this.receiveMessage();
+		if( receivedMessage.task.equals("Await Players") ){
+			Message response = new Message();
+			response.task = "Awaiting Players";
+			response.setDataObject(this.getPeerServerInetSocketAddress());
+			this.sendMessage(response);
+			this.closeConnection();
+		}
+		else if(receivedMessage.task.equals("Join Players") ){
+
+		}
 		return receivedMessage;
 	}
 

@@ -8,18 +8,7 @@ class Game {
 			communication.connectToServer();
 			communication.greetServer();
 			communication.startPeerServer();
-			Message gameResponse = communication.requestServerToStartGame();
-
-			if( gameResponse.task.equals("Await Players") ){
-				Message m = new Message();
-				m.task = "Awaiting Players";
-				m.setDataObject(communication.getPeerServerInetSocketAddress());
-				communication.sendMessage(m);
-				communication.closeConnection();
-			}
-			else if(gameResponse.task.equals("Join Players") ){
-
-			}
+			communication.requestServerToStartGame();			
 		}
 		catch(Exception e){
 			System.out.println("Failed to Connect to Server");
