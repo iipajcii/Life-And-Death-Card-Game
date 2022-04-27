@@ -8,7 +8,7 @@ class Communication {
 	ArrayList<Player> players = new ArrayList<Player>();
 	int serverSocketNumber = 3333;
 	private	Socket socket;
-	private int players_needed = 2;
+	private int players_needed = 3;
 	private Player currentPlayer = null;
 
 	// Peer Server Variables
@@ -52,7 +52,6 @@ class Communication {
 		catch(IOException ex){
 			ex.printStackTrace();
 		}
-		System.out.println("Is the Port Okay: " + externalPeerSocket);
 	}
 
 	public Message requestServerToStartGame(){
@@ -67,17 +66,26 @@ class Communication {
 			this.sendMessage(response);
 			this.closeConnection();
 			System.out.println("Waiting For Other Players To Connect..");
-			while(players.size() < this.players_needed + 1){
+			while(players.size() < this.players_needed - 1){
 				try {
 					externalPeerSocket = peerServerSocket.accept();
 					System.out.println("New Peer Connected");
 					System.out.println("Getting New Peer Streams");
-					this.getPeerStreams(externalPeerSocket);
 					Player currentPlayer = new Player(externalPeerSocket);
+					this.getPeerStreams(externalPeerSocket);
+					currentPlayer.setStreams(peer_ois, peer_oos);
+					players.add(currentPlayer);
+					System.out.println("Players: " + (players.size() + 1) +", Players Needed: " + this.players_needed);
 					System.out.println("Peer Server Received Client Connection");
 					//Server Receiving Greeting From Client
 					this.receiveMessageFromObjectInputStream(peer_ois);
-					
+					this.greetPeerClient(peer_oos, peer_ois);
+					//Server Asks Client For Server Socket
+					m = new Message();
+					m.setTask("Requesting Server Address");
+					this.sendMessageToObjectOutputStream(peer_oos, m);
+					m = this.receiveMessageFromObjectInputStream(peer_ois);
+					System.out.println("Player Server Address: " + (InetSocketAddress) m.getDataObject());
 				} 
 				catch (SocketException e) {
 					System.out.println("Broken Pipe");
@@ -91,7 +99,36 @@ class Communication {
 					e.printStackTrace();
 				}
 			}
-			System.out.println("//We Have All The Players We Need, Now DIE!");
+			System.out.println("We Have All The Players We Need!");
+			//Sending each connected Player a message that the game should start
+			try {
+				for ( int counter = 0, count = players.size(); counter < count; counter++ ) {
+					m = new Message();
+					m.setTask("Begin Game");
+					Player player = players.get(counter);
+					System.out.println(player);
+					this.sendMessageToObjectOutputStream(player.getObjectOutputStream(), m);
+					// Server Receiving Request For Other Players From Client
+					response = this.receiveMessageFromObjectInputStream(player.getObjectInputStream());
+					if(response.task.equals("Requesting Peer Addresses")){
+						ArrayList<InetSocketAddress> playerAddresses = new ArrayList<InetSocketAddress>();
+						for( int counter2 = 0, count2 = players.size(); counter2 < count2; counter2++ ) {
+							if(players.get(counter2) != player ){
+								playerAddresses.add(players.get(counter2).getPeerServerInetSocketAddress());
+							}
+						}
+						m = new Message();
+						m.setTask("Peer Addresses");
+						m.setDataObject(playerAddresses);
+						System.out.println("Client Requesting Peers Function");
+						this.sendMessageToObjectOutputStream(player.getObjectOutputStream(), m);
+					}
+				}
+			}
+			catch (Exception ex) {
+				System.out.println("Failed to Begin Game With Peers");
+				ex.printStackTrace();
+			}
 		}
 		else if(receivedMessage.task.equals("Join Players") ){
 			this.closeConnection();
@@ -109,6 +146,21 @@ class Communication {
 			players.add(currentPlayer);
 			// The Players ObjectOutput and ObjectInput Streams are handled by the function below
 			this.greetPeerServer(currentPlayer.getObjectOutputStream(), currentPlayer.getObjectInputStream());
+			//-----
+			receiveMessageFromObjectInputStream(peer_ois);
+			receiveMessageFromObjectInputStream(peer_ois);
+			m = new Message();
+			m.setTask("Sending Server Address");
+			m.setDataObject(this.getPeerServerInetSocketAddress());
+			this.sendMessageToObjectOutputStream(peer_oos, m);
+			Message begin = this.receiveMessageFromObjectInputStream(peer_ois);
+			m = new Message();
+			m.setTask("Requesting Peer Addresses");
+			this.sendMessageToObjectOutputStream(peer_oos, m);
+			//Response with peer addresses
+			m = this.receiveMessageFromObjectInputStream(peer_ois);
+			System.out.println("This is where the players should go");
+			System.out.println( ( (ArrayList<InetSocketAddress>) m.getDataObject() ).size() );
 		}
 		return receivedMessage;
 	}
@@ -173,16 +225,12 @@ class Communication {
 		Message message = new Message();
 		message.task = "Hello Peer Server";
 		this.sendMessageToObjectOutputStream(oos, message);
-		receiveMessageFromObjectInputStream(ois);
-		Message m = this.receiveMessage();
 	}
 
 	public void greetPeerClient(ObjectOutputStream oos, ObjectInputStream ois){
 		Message message = new Message();
 		message.task = "Hello Peer Client";
 		this.sendMessageToObjectOutputStream(oos, message);
-		receiveMessageFromObjectInputStream(ois);
-		Message m = this.receiveMessage();
 	}
 
 	public void getStreams(){
@@ -197,7 +245,6 @@ class Communication {
 
 	public void getPeerStreams(Socket peerSocket){
 		//This function is used by both a peer-server and peer-client
-		System.out.println("This is the Peer Streams");
 		try {
 			peer_oos = new ObjectOutputStream(peerSocket.getOutputStream());
 			peer_ois = new ObjectInputStream(peerSocket.getInputStream());
