@@ -5,6 +5,7 @@ class Player {
 	private Socket socket = null;
 	private	ObjectInputStream ois;
 	private	ObjectOutputStream oos;
+	private InetSocketAddress peerServerInetSocketAddress = null;
 
 	public Player (Socket s){
 		this.socket = s;
@@ -16,10 +17,18 @@ class Player {
 	}
 
 	public ObjectOutputStream getObjectOutputStream(){
-		return oos;
+		return this.oos;
 	}
 
 	public ObjectInputStream getObjectInputStream(){
-		return ois;
+		return this.ois;
+	}
+
+	public void setPeerServerInetSocketAddress(InetSocketAddress psisa){
+		this.peerServerInetSocketAddress = psisa;
+	}
+
+	public InetSocketAddress getPeerServerInetSocketAddress(){
+		return this.peerServerInetSocketAddress;
 	}
 }
