@@ -1,6 +1,7 @@
 import java.lang.Math;
 import java.net.*;
 import java.io.*;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.ArrayList;
 
@@ -85,6 +86,7 @@ class Communication {
 					m.setTask("Requesting Server Address");
 					this.sendMessageToObjectOutputStream(peer_oos, m);
 					m = this.receiveMessageFromObjectInputStream(peer_ois);
+					currentPlayer.setPeerServerInetSocketAddress((InetSocketAddress) m.getDataObject());
 					System.out.println("Player Server Address: " + (InetSocketAddress) m.getDataObject());
 				} 
 				catch (SocketException e) {
@@ -129,6 +131,7 @@ class Communication {
 				System.out.println("Failed to Begin Game With Peers");
 				ex.printStackTrace();
 			}
+			this.serverCoordinateMeshingWithPeers();
 		}
 		else if(receivedMessage.task.equals("Join Players") ){
 			this.closeConnection();
@@ -161,6 +164,7 @@ class Communication {
 			m = this.receiveMessageFromObjectInputStream(peer_ois);
 			System.out.println("This is where the players should go");
 			System.out.println( ( (ArrayList<InetSocketAddress>) m.getDataObject() ).size() );
+			this.peerCoordinateMeshingWithServer();
 		}
 		return receivedMessage;
 	}
@@ -184,34 +188,95 @@ class Communication {
 				ex.printStackTrace();
 			}
 		}
+	}
 
-		// while(true)
-		// {
-		// 	try {
-		// 		Socket playerSocket = peerServerSocket.accept();
-		// 		Player player = new Player(playerSocket);
-		// 		players.add(player);
-		// 		System.out.println("New Player has joined");
-		// 	} 
-		// 	catch (SocketException e) {
-		// 		System.out.println("Broken Pipe");
-		// 		e.printStackTrace();
-		// 	}
-		// 	catch (IOException e) {
-		// 		e.printStackTrace();
-		// 	}
-		// 	catch (Exception e) {
-		// 		System.out.println("Something went wrong!");
-		// 		e.printStackTrace();
-		// 	}
-		// }
-		/* 
-			Unreachable Statements to close sockets
-			din.close();  
-			dout.close();  
-			socket.close();  
-			serverSocket.close();
-		*/
+	public void serverCoordinateMeshingWithPeers(){
+		try{
+			System.out.println("Server Meshing Function Started");
+			//Have a list of all connections
+			//Sorting Players By Port Number
+			ArrayList<Player> sortedPlayers = new ArrayList<Player>();
+			int portNumbers[] = new int[players.size()];
+			for(int counter = 0, count = players.size(); counter < count; counter++){
+				portNumbers[counter] = players.get(counter).getPeerServerInetSocketAddress().getPort();
+			}
+			Arrays.sort(portNumbers);
+			for(int counter = 0, count = players.size(); counter < count; counter++){
+				for(int counter2 = 0, count2 = players.size(); counter2 < count2; counter2++){
+					if(portNumbers[counter] == players.get(counter2).getPeerServerInetSocketAddress().getPort()){
+						sortedPlayers.add(players.get(counter2));
+						break;
+					}
+				}
+			}
+			//loop over all connections in order of lowest port number
+			for(int counter = 0, count = sortedPlayers.size(); counter < count; counter++){
+				InetSocketAddress currentSocketAddress = sortedPlayers.get(counter).getPeerServerInetSocketAddress();
+				// Inform all connections to should connect to current port in iteration
+				// **Inform the one that shoud be accepting connections _FIRST_ so it can start accepting connections
+				for(int counter2 = 0, count2 = sortedPlayers.size(); counter2 < count2; counter2++){
+					if(sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort() != currentSocketAddress.getPort()){continue;}
+					Message message = new Message();
+					message.setTask("Connect To Peer");
+					message.setDataObject(sortedPlayers.get(counter2).getPeerServerInetSocketAddress());
+					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
+					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
+					this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter2).getObjectInputStream());
+				}
+				//Proceed to inform other connections
+				System.out.println("Other Connections");
+				for(int counter2 = 0, count2 = sortedPlayers.size(); counter2 < count2; counter2++){
+					//We already informed the peer that the other peers should be connecting to in the loop above
+					if(sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort() == sortedPlayers.get(counter).getPeerServerInetSocketAddress().getPort()){continue;}
+					Message message = new Message();
+					message.setTask("Connect To Peer");
+					message.setDataObject(sortedPlayers.get(counter2).getPeerServerInetSocketAddress());
+					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
+					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
+					this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter2).getObjectInputStream());
+				}
+				
+				// Server waits for all peers to say they have connected. *After which they will start listening*
+				System.out.println("Next Peer Iteration");
+			}
+			// At the end of the loop send a finished meshing message to all peers
+			for(int counter = 0, count = sortedPlayers.size(); counter < count; counter++){
+				Message message = new Message();
+				message.setTask("Finished Meshing");
+				this.sendMessageToObjectOutputStream(sortedPlayers.get(counter).getObjectOutputStream(), message);
+				//this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter).getObjectInputStream());
+			}
+			System.out.println("Server Meshing Function Completed");
+		}
+		catch(Exception ex){
+			ex.printStackTrace();
+		}
+	}
+
+	public void peerCoordinateMeshingWithServer(){
+		try {
+			System.out.println("Peer Meshing Function Started");
+			Message response = new Message();
+			Message received = new Message();
+			received.setTask("");
+			while(!received.task.equals("Finished Meshing")){
+				// Listen to what main server has to say
+				received = this.receiveMessageFromObjectInputStream(peer_ois);
+				System.out.println(received.getTask());
+				// Connect to what main server tells you to connect to
+				
+				// Reply that you have connected
+				response.setTask("Finished Connecting");
+				// After you have finished connecting listen again
+				this.sendMessageToObjectOutputStream(peer_oos, response);
+				System.out.println("Is Finished Meshing? " + Boolean.toString(received.task.equals("Finished Meshing")));
+			}
+			// When server says finished meshing the function ends.
+			System.out.println("Peer Meshing Function Completed");
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
 	}
 
 	public void greetServer(){
