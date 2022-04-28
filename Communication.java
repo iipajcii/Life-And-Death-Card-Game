@@ -29,6 +29,17 @@ class Communication {
 		return this.peerServerSocket.getLocalPort();
 	}
 
+	public ServerSocket getPeerServerSocket(){
+		return this.peerServerSocket;
+	}
+
+	public void broadcast(Message m){
+		for (int counter = 0, count = players.size(); counter < count ; counter++) {
+			Player player = players.get(counter);
+			this.sendMessageToObjectOutputStream(player.getObjectOutputStream(), m);
+		}
+	}
+
 	public InetSocketAddress getPeerServerInetSocketAddress(){
 		try {
 			return new InetSocketAddress(InetAddress.getLocalHost(), this.peerServerSocket.getLocalPort());
@@ -456,5 +467,15 @@ class Communication {
 		catch(IOException ex) {
 			ex.printStackTrace();
 		}
+	}
+
+	public Player getPlayerWithServerSocketPortNumber(int port){
+		for (int counter = 0, count = players.size() ; counter < count ; counter++) {
+			Player player = players.get(counter);
+			if(player.getPeerServerInetSocketAddress().getPort() == port){
+				return player;
+			}
+		}
+		return null;
 	}
 }
