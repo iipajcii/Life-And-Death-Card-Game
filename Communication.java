@@ -25,6 +25,10 @@ class Communication {
 
 	Message receivedMessage = new Message();
 
+	public int getPeerServerPort(){
+		return this.peerServerSocket.getLocalPort();
+	}
+
 	public InetSocketAddress getPeerServerInetSocketAddress(){
 		try {
 			return new InetSocketAddress(InetAddress.getLocalHost(), this.peerServerSocket.getLocalPort());
@@ -33,6 +37,10 @@ class Communication {
 			ex.printStackTrace();
 		}
 		return null;
+	}
+
+	public ArrayList<Player> getPlayers(){
+		return this.players;
 	}
 
 	public void connectToServer() throws Exception {
