@@ -31,4 +31,12 @@ class Player {
 	public InetSocketAddress getPeerServerInetSocketAddress(){
 		return this.peerServerInetSocketAddress;
 	}
+	
+	public void setSocket(Socket s){
+		this.socket = s;
+	}
+
+	public Socket getSocket(){
+		return this.socket;
+	}
 }
