@@ -21,6 +21,7 @@ class Communication {
 	private Socket externalPeerSocket = null;
 	private	ObjectInputStream peer_ois;
 	private	ObjectOutputStream peer_oos;
+	private ArrayList<InetSocketAddress> playerInetSocketAddresses = null;
 
 	Message receivedMessage = new Message();
 
@@ -55,7 +56,7 @@ class Communication {
 		}
 	}
 
-	public Message requestServerToStartGame(){
+	public Boolean requestServerToStartGame(){
 		Message m = new Message();
 		m.task = "Start Game";
 		this.sendMessage(m);
@@ -88,6 +89,7 @@ class Communication {
 					m = this.receiveMessageFromObjectInputStream(peer_ois);
 					currentPlayer.setPeerServerInetSocketAddress((InetSocketAddress) m.getDataObject());
 					System.out.println("Player Server Address: " + (InetSocketAddress) m.getDataObject());
+					this.displayPlayers();
 				} 
 				catch (SocketException e) {
 					System.out.println("Broken Pipe");
@@ -135,6 +137,7 @@ class Communication {
 		}
 		else if(receivedMessage.task.equals("Join Players") ){
 			this.closeConnection();
+			this.displayPlayers();
 			InetSocketAddress peerServerSocketAddress = (InetSocketAddress) receivedMessage.getDataObject();
 			System.out.println("Joining Peer Server At: " + (InetSocketAddress) receivedMessage.getDataObject());
 			try {
@@ -145,8 +148,10 @@ class Communication {
 				ex.printStackTrace();
 			}
 			currentPlayer = new Player(externalPeerSocket);
+			currentPlayer.setPeerServerInetSocketAddress(new InetSocketAddress("localhost",externalPeerSocket.getPort()));
 			currentPlayer.setStreams(peer_ois, peer_oos);
 			players.add(currentPlayer);
+			// this.displayPlayers();
 			// The Players ObjectOutput and ObjectInput Streams are handled by the function below
 			this.greetPeerServer(currentPlayer.getObjectOutputStream(), currentPlayer.getObjectInputStream());
 			//-----
@@ -163,10 +168,11 @@ class Communication {
 			//Response with peer addresses
 			m = this.receiveMessageFromObjectInputStream(peer_ois);
 			System.out.println("This is where the players should go");
-			System.out.println( ( (ArrayList<InetSocketAddress>) m.getDataObject() ).size() );
+			this.playerInetSocketAddresses = (ArrayList<InetSocketAddress>) m.getDataObject();
 			this.peerCoordinateMeshingWithServer();
 		}
-		return receivedMessage;
+		this.displayPlayers();
+		return true;
 	}
 
 	public void startPeerServer(){
@@ -191,6 +197,7 @@ class Communication {
 	}
 
 	public void serverCoordinateMeshingWithPeers(){
+		this.displayPlayers();
 		try{
 			System.out.println("Server Meshing Function Started");
 			//Have a list of all connections
@@ -217,7 +224,7 @@ class Communication {
 				for(int counter2 = 0, count2 = sortedPlayers.size(); counter2 < count2; counter2++){
 					if(sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort() != currentSocketAddress.getPort()){continue;}
 					Message message = new Message();
-					message.setTask("Connect To Peer");
+					message.setTask("Allow Peers To Connect");
 					message.setDataObject(sortedPlayers.get(counter2).getPeerServerInetSocketAddress());
 					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
 					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
@@ -230,7 +237,7 @@ class Communication {
 					if(sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort() == sortedPlayers.get(counter).getPeerServerInetSocketAddress().getPort()){continue;}
 					Message message = new Message();
 					message.setTask("Connect To Peer");
-					message.setDataObject(sortedPlayers.get(counter2).getPeerServerInetSocketAddress());
+					message.setDataObject(currentSocketAddress);
 					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
 					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
 					this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter2).getObjectInputStream());
@@ -251,32 +258,78 @@ class Communication {
 		catch(Exception ex){
 			ex.printStackTrace();
 		}
+		this.displayPlayers();
+	}
+
+	public void displayPlayers(){
+		for (int counter = 0, count = players.size(); counter < count ; counter++ ) {
+			Player player = players.get(counter);
+			System.out.println(counter);
+			System.out.println("Player Socket: " +player.getSocket());
+			System.out.println("Player ObjectInputStream: " + player.getObjectInputStream());
+			System.out.println("Player ObjectOutputStream: " + player.getObjectOutputStream());
+			System.out.println("Player InetSocketAddress: " + player.getPeerServerInetSocketAddress());
+		}
 	}
 
 	public void peerCoordinateMeshingWithServer(){
+		this.displayPlayers();
 		try {
 			System.out.println("Peer Meshing Function Started");
+			System.out.println("My Port: " + this.peerServerSocket.getLocalPort());
 			Message response = new Message();
 			Message received = new Message();
 			received.setTask("");
 			while(!received.task.equals("Finished Meshing")){
 				// Listen to what main server has to say
 				received = this.receiveMessageFromObjectInputStream(peer_ois);
-				System.out.println(received.getTask());
-				// Connect to what main server tells you to connect to
-				
-				// Reply that you have connected
-				response.setTask("Finished Connecting");
-				// After you have finished connecting listen again
-				this.sendMessageToObjectOutputStream(peer_oos, response);
+				// Connect to what main server tells you to connect to or open up to receive connections if you are the peer that everyone is to connect to
+				if( received.task.equals("Allow Peers To Connect") ){
+					response.setTask("Waiting For Peer Connections");
+					this.sendMessageToObjectOutputStream(peer_oos, response);
+					for(int counter = 0, count = this.playerInetSocketAddresses.size(); counter < count; counter++){
+						Socket tempExternalPeerSocket = peerServerSocket.accept();
+						System.out.println("New Peer Connected");
+						System.out.println("Getting New Peer Streams");
+						currentPlayer = new Player(tempExternalPeerSocket);
+						ObjectOutputStream temp_peer_oos = new ObjectOutputStream(tempExternalPeerSocket.getOutputStream());
+						ObjectInputStream temp_peer_ois = new ObjectInputStream(tempExternalPeerSocket.getInputStream());
+						currentPlayer.setStreams(temp_peer_ois, temp_peer_oos);
+						currentPlayer.setPeerServerInetSocketAddress(new InetSocketAddress("localhost",tempExternalPeerSocket.getPort()));
+						// You do not have to add another player here, unintuitively if you make a connection in the 'if' statement AND the 'else' statement you will create one more connection than needed.
+						// Example: If there are 3 peers if you make a connection in the if and else statement you will create the connections:
+						// 2->1,3->1,1->2,3->2,1->3,2->3  Notice that there are redundant connections in this case: example 2->1 and 1->2, since the streams are connected on the first connection, the next connection is redundant
+						// players.add(currentPlayer);
+					}
+				}
+				else if(received.task.equals("Connect To Peer")) {
+					System.out.println("Connecting to Peer Server");
+					Socket tempPeerSocket = new Socket(((InetSocketAddress) received.getDataObject()).getAddress(), ((InetSocketAddress) received.getDataObject()).getPort());
+					System.out.println("Connected to new peer server");
+					currentPlayer = new Player(tempPeerSocket);
+					System.out.println("New Player Created");
+					ObjectOutputStream temp_peer_oos = new ObjectOutputStream(tempPeerSocket.getOutputStream());
+					ObjectInputStream temp_peer_ois = new ObjectInputStream(tempPeerSocket.getInputStream());
+					System.out.println("Streams Acquired");
+					currentPlayer.setStreams(temp_peer_ois, temp_peer_oos);
+					System.out.println("Streams Set");
+					currentPlayer.setPeerServerInetSocketAddress(new InetSocketAddress("localhost",tempPeerSocket.getPort()));
+					players.add(currentPlayer);
+					System.out.println("Player Added");
+					// Reply that you have connected
+					response.setTask("Finished Connecting");
+					this.sendMessageToObjectOutputStream(peer_oos, response);
+				}
 				System.out.println("Is Finished Meshing? " + Boolean.toString(received.task.equals("Finished Meshing")));
 			}
 			// When server says finished meshing the function ends.
 			System.out.println("Peer Meshing Function Completed");
+			// After you have finished connecting listen again (Top of the while loop again)
 		}
 		catch(Exception e){
 			e.printStackTrace();
 		}
+		this.displayPlayers();
 	}
 
 	public void greetServer(){
@@ -323,7 +376,6 @@ class Communication {
 		try {
 			peer_oos = new ObjectOutputStream(peerSocket.getOutputStream());
 			peer_ois = new ObjectInputStream(peerSocket.getInputStream());
-			currentPlayer.setStreams(peer_ois, peer_oos);
 		}
 		catch(IOException ex){
 			ex.printStackTrace();
