@@ -67,7 +67,10 @@ class Game {
 					m.setTask("Number: " + choice);
 					communication.broadcast(m);
 				} while(choice != 0);
-				// this.nextPlayerBroadcast(m);
+				Message next = new Message();
+				next.setTask("Next Player");
+				this.nextPlayerBroadcast(next);
+				this.nextPlayer();
 			}
 			else {
 				Message m = new Message();
@@ -87,9 +90,13 @@ class Game {
 				catch(Exception ex){
 					ex.printStackTrace();
 				}
-				while(true){
+				do {
 					m = communication.receiveMessageFromObjectInputStream(this.getCurrentPlayer().getObjectInputStream());
-				}
+					if(m.task.equals("Next Player")){
+						this.nextPlayer();
+					}
+				} while(!m.task.equals("Next Player"));
+				
 			}
 			// this.nextPlayer();
 			loopCounter++;
