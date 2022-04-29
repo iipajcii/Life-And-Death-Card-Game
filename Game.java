@@ -103,6 +103,13 @@ class Game {
 					else if(m.task.equals("Skip Turn")){
 						System.out.println("Player " + this.currentPlayerNumber + " is skipping their turn.");
 					}
+					else if(m.task.equals("Dead Player")){
+						System.out.println("Player " + this.currentPlayerNumber + " is dead! Skipping Their Turn");
+					}
+					else if(m.task.equals("End Game")){
+						System.out.println("Like Life This Game Must Now End. Thank You For Playing Life And Death");
+						System.exit(0);
+					}
 				} while(!m.task.equals("Next Player"));
 			}
 		}
@@ -316,6 +323,25 @@ class Game {
 		int choice;
 		Boolean done = false;
 		do {
+			if(this.health <= 0){
+				System.out.println("You are dead! Skipping your turn...");
+				Message death = new Message();
+				death.setTask("Dead Player");
+				communication.broadcast(death);
+				done = true;
+				break;
+			}
+			if(isLastSurvivor()){
+				Message end = new Message();
+				end.setTask("End Game");
+				communication.broadcast(end);
+				done = true;
+				System.out.println("CONGRATULATIONS!!!");
+				System.out.println("YOU HAVE ONE THE GAME!");
+				System.out.println("NOW LIVE!!");
+				System.exit(0);
+				break;
+			}
 			int cardChoice = -1;
 			Message m = new Message();
 			this.displayPlayers();
@@ -404,5 +430,18 @@ class Game {
 		else if(c.getType().equals("Death")){
 			this.health -= c.getValue();
 		}
+	}
+
+	public Boolean isLastSurvivor(){
+		for (int counter = 0, count = portNumbers.length; counter < count ; counter++ ) {
+			Player player = getPlayerByPortNumber(portNumbers[counter]);
+			if(player != null && player.getHealth() > 0){
+				return false;
+			}
+		}
+		if(this.health > 0){
+			return true;
+		}
+		return false;
 	}
 }

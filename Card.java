@@ -52,8 +52,8 @@ class Card implements Serializable {
 				break;
 		}
 
-		min = 1;  
-		max = 4;
+		min = 2;  
+		max = 6;
 		value = (int)(Math.random() * ( max - min + 1 ) + min );
 	}
 
