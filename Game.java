@@ -337,7 +337,7 @@ class Game {
 				communication.broadcast(end);
 				done = true;
 				System.out.println("CONGRATULATIONS!!!");
-				System.out.println("YOU HAVE ONE THE GAME!");
+				System.out.println("YOU HAVE WON THE GAME!");
 				System.out.println("NOW LIVE!!");
 				System.exit(0);
 				break;
