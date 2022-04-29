@@ -6,12 +6,14 @@ import java.net.*;
 import java.io.*;
 
 class Game {
+	private Boolean testing = false;
 	private ArrayList<Card> cards = new ArrayList<Card>();
 	private int playerNumber = 0;
 	private int currentPlayerNumber = 1;
 	private Player currentPlayer = null;
 	private int playerCount = 0;
 	private int health = 20;
+	private int maxHealth = 20;
 	private int portNumbers[];
 	private Communication communication = null;
 	public void start(){
@@ -28,20 +30,26 @@ class Game {
 			System.out.println("Failed to Start Game");
 		}
 
-		System.out.println("THE GAME HAS STARTED");
+		System.out.println("THE GAME HAS STARTED\n");
 		this.playerNumber = this.getPlayerNumber();
 		this.makeNewHandOfCards(5);
 		Boolean end = false;
 		int loopCounter = 0;
-		System.out.println("Player Number: " + currentPlayerNumber);
+		System.out.println("$ You Are Player " + playerNumber);
+		if(currentPlayerNumber == playerNumber){
+			System.out.println("Your Turn!");
+		}
+		else{
+			System.out.println("Player " + currentPlayerNumber + "'s Turn");
+		}
 		while(loopCounter < 9){
 			if(isMyTurn()){
 				for(int counter = 0, count = 2; counter < count; counter++){
 					try {
 						ServerSocket peerServerSocket = communication.getPeerServerSocket();
-						System.out.println("Peer Server Socket: " + peerServerSocket);
+						if(testing){System.out.println("Peer Server Socket: " + peerServerSocket);}
 						Socket temp_socket = peerServerSocket.accept();
-						System.out.println("Temp Socket: " + temp_socket);
+						if(testing){System.out.println("Temp Socket: " + temp_socket);}
 						int temp_socket_port = temp_socket.getPort();
 						// System.out.println("Temp Socket Port: " + temp_socket_port);
 						// Player player = this.getPlayerByPortNumber(temp_socket_port);
@@ -51,31 +59,17 @@ class Game {
 						Message m = communication.receiveMessageFromObjectInputStream(temp_ois);
 						Player player = this.getPlayerByPortNumber((Integer)m.getDataObject());
 						player.setStreams(temp_ois, temp_oos);
-						System.out.println("A Player Re-Streamed");
+						if(testing){System.out.println("Player Connected Successfully");}
 					}
 					catch(Exception ex){
 						ex.printStackTrace();
 					}
 				}
-				Scanner input;
-				int choice;
-				do {
-					Message m = new Message();
-					System.out.println("I should broadcast");
-					input = new Scanner(System.in);
-					choice = input.nextInt();
-					m.setTask("Number: " + choice);
-					communication.broadcast(m);
-				} while(choice != 0);
-				Message next = new Message();
-				next.setTask("Next Player");
-				this.nextPlayerBroadcast(next);
-				this.nextPlayer();
+				this.playerInterface();
 			}
 			else {
 				Message m = new Message();
-				m.setTask("Listening To Player: " + this.currentPlayerNumber);
-				System.out.println("I should listen to Player: " + this.currentPlayerNumber + ", At Port: " + currentPlayerPortNumber());
+				System.out.println("Listeing To Player: " + this.currentPlayerNumber + ", On Port: " + currentPlayerPortNumber());
 				try {
 					Socket temp_socket = new Socket(InetAddress.getLocalHost(), currentPlayerPortNumber());
 					ObjectOutputStream temp_oos = new ObjectOutputStream(temp_socket.getOutputStream());
@@ -92,8 +86,24 @@ class Game {
 				}
 				do {
 					m = communication.receiveMessageFromObjectInputStream(this.getCurrentPlayer().getObjectInputStream());
-					if(m.task.equals("Next Player")){
+					
+					if(m.task.equals("Play Card")){
+						Card c = (Card) m.getDataObject();
+						System.out.println("Player " + this.currentPlayerNumber +" played a " + c.getType() + " card of value " + c.getValue() + " on Player " + c.getPlayerNumber());
+						Player p = getPlayerByNumber(c.getPlayerNumber());
+						if(p != null){
+							p.applyCard(c);
+						}
+						else {
+							this.applyCard(c);
+						}
+						this.displayPlayers();
+					}
+					else if(m.task.equals("Next Player")){
 						this.nextPlayer();
+					}
+					else if(m.task.equals("Skip Turn")){
+						System.out.println("Player " + this.currentPlayerNumber + " is skipping their turn.");
 					}
 				} while(!m.task.equals("Next Player"));
 				
@@ -116,7 +126,6 @@ class Game {
 		// 		this.nextPlayer();
 		// 	}
 		// }
-		//this.mainLoop();
 	}
 
 	public void end(){
@@ -165,8 +174,8 @@ class Game {
 				break;
 			}
 		}
-		System.out.println(Arrays.toString(portNumbers));
-		System.out.println("Port: " + communication.getPeerServerPort() +", Player Number: " + playerNumber);
+		if(testing){System.out.println(Arrays.toString(portNumbers));}
+		if(testing){System.out.println("Port: " + communication.getPeerServerPort() +", Player Number: " + playerNumber);}
 		return playerNumber;
 	}
 
@@ -235,53 +244,6 @@ class Game {
 		return false;
 	}
 
-	public void mainLoop(){
-		Scanner input;
-		int choice = -1;
-
-		while(choice != 0){
-			if(this.isMyTurn()){
-				System.out.println("YOUR TURN!");
-			}
-
-			this.displayPlayers();
-			System.out.println("Your Health: " + this.health);
-			System.out.println("Card Count: " + this.cards.size());
-			System.out.println("Cards In Hand");
-
-			this.displayCards();
-			if(this.isMyTurn()){
-				System.out.println("\nActions:");
-				System.out.println("1. Play Card");
-				System.out.println("2. Skip Turn");
-				System.out.println("3. Leave Game");
-				
-				input = new Scanner(System.in);
-				choice = input.nextInt();
-
-				switch(choice){
-					case 1:
-						this.playCard();
-						break;
-					case 2:
-						this.skipTurn();
-						break;
-					case 3:
-						this.leaveGame();
-						break;
-				}
-
-				// if(choice != 0){this.nextPlayer();}
-			}
-			else {
-				System.out.println("Waiting For Other Players");
-				//The (this.nextPlayer();) function is Not supposed to be here
-				//Just preventing a loop while developing
-				this.nextPlayer();
-			}
-		}
-	}
-
 	public void makeNewHandOfCards(int handSize){
 		cards = new ArrayList<Card>();
 		for(int counter = 0, count = handSize; counter < count; counter++){
@@ -299,22 +261,32 @@ class Game {
 	}
 
 	public void playCard(){
-		System.out.println("What card do you want to play?");
-		System.out.println("0. Cancel Playing Card");
-		this.displayCards();
+		// System.out.println("What card do you want to play?");
+		// System.out.println("0. Cancel Playing Card");
+		// this.displayCards();
 
-		int choice = -1;
-		do {
-			Scanner input = new Scanner(System.in);
-			choice = input.nextInt();
-		} while(choice < 0 || choice > cards.size());
-		Card card = cards.get(choice - 1);
-		cards.remove(card);
-		System.out.println("Played Card: " + card.toString());
+		// int choice = -1;
+		// do {
+		// 	Scanner input = new Scanner(System.in);
+		// 	choice = input.nextInt();
+		// } while(choice < 0 || choice > cards.size());
+		// System.out.println("What player do you want to target?");
+		// System.out.println("0. Cancel Playing Card");
+		// for (int counter = 0, count = playerCount; counter < count ; counter++ ) {
+		// 	System.out.println((counter + 1) + ": Player " + (counter + 1));
+		// }		
+		// int playerChoice = -1;
+		// do {
+		// 	Scanner input = new Scanner(System.in);
+		// 	choice = input.nextInt();
+		// } while(choice < 0 || choice > cards.size());
+		// Card card = cards.get(choice - 1);
+		// cards.remove(card);
+		// System.out.println("Played Card: " + card.toString());
 
-		Message m = new Message();
-		m.setTask("Play Card");
-		m.setDataObject(card);
+		// Message m = new Message();
+		// m.setTask("Play Card");
+		// m.setDataObject(card);
 	}
 
 	public void skipTurn(){
@@ -326,7 +298,16 @@ class Game {
 	}
 
 	public void displayPlayers(){
-		System.out.println("We should display players here");
+		// ArrayList<Player> players = communication.getPlayers();
+		for (int counter = 0, count = portNumbers.length; counter < count ; counter++ ) {
+			Player player = getPlayerByPortNumber(portNumbers[counter]);
+			if(player != null){
+				System.out.println("Player " + (counter + 1) + ": [Health " + player.getHealth() +"]");
+			}
+			else {
+				System.out.println("Player " + (counter + 1) + ": [Health " + this.health +"]");
+			}
+		}
 	}
 
 	public Player getCurrentPlayer(){
@@ -338,6 +319,28 @@ class Game {
 			}
 		}
 		return null;
+	}
+	
+	public Player getPlayerByNumber(int num){
+		if(num == playerNumber){return null;}
+		// return this.getPlayerByPortNumber(portNumbers[num - 1]);
+		ArrayList<Player> players = communication.getPlayers();
+		ArrayList<Player> sortedPlayers = new ArrayList<Player>();
+		// portNumbers = new int[players.size()];
+		//Need functionality in getPlayerNumber to alter the PortNumberArray
+		getPlayerNumber();
+		// Arrays.sort(portNumbers);
+		// System.out.println(Arrays.toString(portNumbers));
+		return getPlayerByPortNumber(portNumbers[num - 1]);
+		// for(int counter = 0, count = players.size(); counter < count; counter++){
+		// 	for(int counter2 = 0, count2 = players.size(); counter2 < count2; counter2++){
+		// 		if(portNumbers[counter] == players.get(counter2).getPeerServerInetSocketAddress().getPort()){
+		// 			sortedPlayers.add(players.get(counter2));
+		// 			break;
+		// 		}
+		// 	}
+		// }
+		// return sortedPlayers.get(num - 1);
 	}
 
 	public Player getNextPlayer(){
@@ -377,6 +380,121 @@ class Game {
 		catch(InterruptedException ex)
 		{
 		    Thread.currentThread().interrupt();
+		}
+	}
+
+	public void playerInterface(){
+		Scanner input;
+		int choice;
+		Boolean done = false;
+		do {
+			int cardChoice = -1;
+			Message m = new Message();
+			this.displayPlayers();
+			System.out.println("Actions:");
+			System.out.println("1. Play Card");
+			System.out.println("2. Skip Turn");
+			input = new Scanner(System.in);
+			choice = input.nextInt();
+			switch(choice){
+				case 1:
+					System.out.println("The cards in your hand are displayed. What Card Do You Want To Play?");
+					System.out.println("0. Cancel Playing Card");
+					this.displayCards();
+					cardChoice = -1;
+					do {
+						Scanner cardChoiceinput = new Scanner(System.in);
+						cardChoice = cardChoiceinput.nextInt();
+					} while(cardChoice < 0 || cardChoice > cards.size());
+					if(cardChoice == 0){break;}
+					System.out.println("What player do you want to target?");
+					System.out.println("0. Cancel Playing Card");
+					for (int counter = 0, count = playerCount; counter < count ; counter++ ) {
+						System.out.println((counter + 1) + ": Player " + (counter + 1));
+					}
+					int playerChoice = -1;
+					do {
+						Scanner playerChoiceInput = new Scanner(System.in);
+						playerChoice = playerChoiceInput.nextInt();
+					} while(playerChoice < 0 || playerChoice > playerCount);
+					if(playerChoice == 0){break;}
+					Card card = cards.get(cardChoice - 1);
+					card.setPlayerNumber(playerChoice);
+					cards.remove(card);
+					System.out.println("Played Card: " + card.toString());
+					Player p = getPlayerByNumber(playerChoice);
+					if(p != null){
+						p.applyCard(card);
+					}
+					else {
+						this.applyCard(card);
+					}
+					this.displayPlayers();
+					m.setTask("Play Card");
+					m.setDataObject(card);
+					done = true;
+					/*
+						System.out.println("What card do you want to play?");
+						System.out.println("0. Cancel Playing Card");
+						this.displayCards();
+
+						int choice = -1;
+						do {
+							Scanner input = new Scanner(System.in);
+							choice = input.nextInt();
+						} while(choice < 0 || choice > cards.size());
+						System.out.println("What player do you want to target?");
+						System.out.println("0. Cancel Playing Card");
+						for (int counter = 0, count = playerCount; counter < count ; counter++ ) {
+							System.out.println((counter + 1) + ": Player " + (counter + 1));
+						}		
+						int playerChoice = -1;
+						do {
+							Scanner input = new Scanner(System.in);
+							choice = input.nextInt();
+						} while(choice < 0 || choice > cards.size());
+						Card card = cards.get(choice - 1);
+						cards.remove(card);
+						System.out.println("Played Card: " + card.toString());
+
+						Message m = new Message();
+						m.setTask("Play Card");
+						m.setDataObject(card);
+					*/
+				break;
+				case 2:
+					m.setTask("Skip Turn");
+					done = true;
+				break;
+			}
+			if(choice < 1 || choice > 2 || cardChoice == 0){
+				if(cardChoice == 0){
+					System.out.println("Cancelled Choosing Card");
+				}
+				else {
+					System.out.println("Invalid Option");
+				}
+			}
+			else {
+				//If choice is not invalid then it must be valid
+				communication.broadcast(m);
+			}
+		} while(!done);
+		Message next = new Message();
+		next.setTask("Next Player");
+		this.nextPlayerBroadcast(next);
+		this.nextPlayer();
+	}
+
+	public void applyCard(Card c){
+		if(c.getType().equals("Life")){
+			this.health += c.getValue();
+			if(this.health > this.maxHealth){
+				this.health = this.maxHealth;
+			}
+		}
+		else if(c.getType().equals("Death")){
+			this.health -= c.getValue();
 		}
 	}
 }

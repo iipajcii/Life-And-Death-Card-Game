@@ -1,6 +1,9 @@
-class Card {
+import java.io.*;
+
+class Card implements Serializable {
 	private String type = "";
 	private int value = 0;
+	private int playerNumber = 0;
 
 	Card(){
 
@@ -27,6 +30,14 @@ class Card {
 		return this.value;
 	}
 
+	public void setPlayerNumber(int pn){
+		this.playerNumber = pn;
+	}
+
+	public int getPlayerNumber(){
+		return this.playerNumber;
+	}
+
 	public void randomizeCardValue(){
 		int min = 1;  
 		int max = 2;  
@@ -47,6 +58,6 @@ class Card {
 	}
 
 	public String toString(){
-		return "[Card Type: " + this.type + ", Card Value: " + this.value + "]";
+		return "[Card Type: " + this.type + ", Card Value: " + this.value + ", Player Number: " + this.playerNumber + "]";
 	}
 }

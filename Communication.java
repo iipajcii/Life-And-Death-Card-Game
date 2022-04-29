@@ -6,6 +6,7 @@ import java.util.Scanner;
 import java.util.ArrayList;
 
 class Communication {
+	private Boolean testing = false;
 	ArrayList<Player> players = new ArrayList<Player>();
 	int serverSocketNumber = 3333;
 	private	Socket socket;
@@ -68,7 +69,7 @@ class Communication {
 		try {
 			// externalPeerSocket = new Socket(sa.getAddress(), sa.getPort());
 			externalPeerSocket = new Socket("localhost", sa.getPort());
-			System.out.println("Echoing Address: " + externalPeerSocket.getInetAddress() + ", Port: " + externalPeerSocket.getPort());
+			if(testing){System.out.println("Echoing Address: " + externalPeerSocket.getInetAddress() + ", Port: " + externalPeerSocket.getPort());}
 		}
 		catch(IOException ex){
 			ex.printStackTrace();
@@ -86,18 +87,18 @@ class Communication {
 			response.setDataObject(this.getPeerServerInetSocketAddress());
 			this.sendMessage(response);
 			this.closeConnection();
-			System.out.println("Waiting For Other Players To Connect..");
+			System.out.println("Waiting For Other Players To Connect..\n");
 			while(players.size() < this.players_needed - 1){
 				try {
 					externalPeerSocket = peerServerSocket.accept();
-					System.out.println("New Peer Connected");
-					System.out.println("Getting New Peer Streams");
+					if(testing){System.out.println("New Peer Connected");}
+					if(testing){System.out.println("Getting New Peer Streams");}
 					Player currentPlayer = new Player(externalPeerSocket);
 					this.getPeerStreams(externalPeerSocket);
 					currentPlayer.setStreams(peer_ois, peer_oos);
 					players.add(currentPlayer);
 					System.out.println("Players: " + (players.size() + 1) +", Players Needed: " + this.players_needed);
-					System.out.println("Peer Server Received Client Connection");
+					if(testing){System.out.println("Peer Server Received Client Connection");}
 					//Server Receiving Greeting From Client
 					this.receiveMessageFromObjectInputStream(peer_ois);
 					this.greetPeerClient(peer_oos, peer_ois);
@@ -107,8 +108,8 @@ class Communication {
 					this.sendMessageToObjectOutputStream(peer_oos, m);
 					m = this.receiveMessageFromObjectInputStream(peer_ois);
 					currentPlayer.setPeerServerInetSocketAddress((InetSocketAddress) m.getDataObject());
-					System.out.println("Player Server Address: " + (InetSocketAddress) m.getDataObject());
-					this.displayPlayers();
+					if(testing){System.out.println("Player Server Address: " + (InetSocketAddress) m.getDataObject());}
+					if(testing){this.displayPlayers();}
 				} 
 				catch (SocketException e) {
 					System.out.println("Broken Pipe");
@@ -122,14 +123,14 @@ class Communication {
 					e.printStackTrace();
 				}
 			}
-			System.out.println("We Have All The Players We Need!");
+			System.out.println("\nWe Have All The Players We Need!");
 			//Sending each connected Player a message that the game should start
 			try {
 				for ( int counter = 0, count = players.size(); counter < count; counter++ ) {
 					m = new Message();
 					m.setTask("Begin Game");
 					Player player = players.get(counter);
-					System.out.println(player);
+					if(testing){System.out.println(player);}
 					this.sendMessageToObjectOutputStream(player.getObjectOutputStream(), m);
 					// Server Receiving Request For Other Players From Client
 					response = this.receiveMessageFromObjectInputStream(player.getObjectInputStream());
@@ -143,7 +144,7 @@ class Communication {
 						m = new Message();
 						m.setTask("Peer Addresses");
 						m.setDataObject(playerAddresses);
-						System.out.println("Client Requesting Peers Function");
+						if(testing){System.out.println("Client Requesting Peers");}
 						this.sendMessageToObjectOutputStream(player.getObjectOutputStream(), m);
 					}
 				}
@@ -156,7 +157,7 @@ class Communication {
 		}
 		else if(receivedMessage.task.equals("Join Players") ){
 			this.closeConnection();
-			this.displayPlayers();
+			if(testing){this.displayPlayers();}
 			InetSocketAddress peerServerSocketAddress = (InetSocketAddress) receivedMessage.getDataObject();
 			System.out.println("Joining Peer Server At: " + (InetSocketAddress) receivedMessage.getDataObject());
 			try {
@@ -170,7 +171,6 @@ class Communication {
 			currentPlayer.setPeerServerInetSocketAddress(new InetSocketAddress("localhost",externalPeerSocket.getPort()));
 			currentPlayer.setStreams(peer_ois, peer_oos);
 			players.add(currentPlayer);
-			// this.displayPlayers();
 			// The Players ObjectOutput and ObjectInput Streams are handled by the function below
 			this.greetPeerServer(currentPlayer.getObjectOutputStream(), currentPlayer.getObjectInputStream());
 			//-----
@@ -190,7 +190,7 @@ class Communication {
 			this.playerInetSocketAddresses = (ArrayList<InetSocketAddress>) m.getDataObject();
 			this.peerCoordinateMeshingWithServer();
 		}
-		this.displayPlayers();
+		if(testing){this.displayPlayers();}
 		return true;
 	}
 
@@ -216,9 +216,9 @@ class Communication {
 	}
 
 	public void serverCoordinateMeshingWithPeers(){
-		this.displayPlayers();
+		if(testing){this.displayPlayers();}
 		try{
-			System.out.println("Server Meshing Function Started");
+			if(testing){System.out.println("Server Meshing Function Started");}
 			//Have a list of all connections
 			//Sorting Players By Port Number
 			ArrayList<Player> sortedPlayers = new ArrayList<Player>();
@@ -245,25 +245,25 @@ class Communication {
 					Message message = new Message();
 					message.setTask("Allow Peers To Connect");
 					message.setDataObject(sortedPlayers.get(counter2).getPeerServerInetSocketAddress());
-					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
+					if(testing){System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());}
 					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
 					this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter2).getObjectInputStream());
 				}
 				//Proceed to inform other connections
-				System.out.println("Other Connections");
+				if(testing){System.out.println("Other Connections");}
 				for(int counter2 = 0, count2 = sortedPlayers.size(); counter2 < count2; counter2++){
 					//We already informed the peer that the other peers should be connecting to in the loop above
 					if(sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort() == sortedPlayers.get(counter).getPeerServerInetSocketAddress().getPort()){continue;}
 					Message message = new Message();
 					message.setTask("Connect To Peer");
 					message.setDataObject(currentSocketAddress);
-					System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());
+					if(testing){System.out.println("Port: " + sortedPlayers.get(counter2).getPeerServerInetSocketAddress().getPort());}
 					this.sendMessageToObjectOutputStream(sortedPlayers.get(counter2).getObjectOutputStream(), message);
 					this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter2).getObjectInputStream());
 				}
 				
 				// Server waits for all peers to say they have connected. *After which they will start listening*
-				System.out.println("Next Peer Iteration");
+				if(testing){System.out.println("Next Peer Iteration");}
 			}
 			// At the end of the loop send a finished meshing message to all peers
 			for(int counter = 0, count = sortedPlayers.size(); counter < count; counter++){
@@ -272,12 +272,12 @@ class Communication {
 				this.sendMessageToObjectOutputStream(sortedPlayers.get(counter).getObjectOutputStream(), message);
 				//this.receiveMessageFromObjectInputStream(sortedPlayers.get(counter).getObjectInputStream());
 			}
-			System.out.println("Server Meshing Function Completed");
+			if(testing){System.out.println("Server Meshing Function Completed");}
 		}
 		catch(Exception ex){
 			ex.printStackTrace();
 		}
-		this.displayPlayers();
+		if(testing){this.displayPlayers();}
 	}
 
 	public void displayPlayers(){
@@ -292,10 +292,10 @@ class Communication {
 	}
 
 	public void peerCoordinateMeshingWithServer(){
-		this.displayPlayers();
+		if(testing){this.displayPlayers();}
 		try {
-			System.out.println("Peer Meshing Function Started");
-			System.out.println("My Port: " + this.peerServerSocket.getLocalPort());
+			if(testing){System.out.println("Peer Meshing Function Started");}
+			if(testing){System.out.println("My Port: " + this.peerServerSocket.getLocalPort());}
 			Message response = new Message();
 			Message received = new Message();
 			received.setTask("");
@@ -308,8 +308,8 @@ class Communication {
 					this.sendMessageToObjectOutputStream(peer_oos, response);
 					for(int counter = 0, count = this.playerInetSocketAddresses.size(); counter < count; counter++){
 						Socket tempExternalPeerSocket = peerServerSocket.accept();
-						System.out.println("New Peer Connected");
-						System.out.println("Getting New Peer Streams");
+						if(testing){System.out.println("New Peer Connected");}
+						if(testing){System.out.println("Getting New Peer Streams");}
 						currentPlayer = new Player(tempExternalPeerSocket);
 						ObjectOutputStream temp_peer_oos = new ObjectOutputStream(tempExternalPeerSocket.getOutputStream());
 						ObjectInputStream temp_peer_ois = new ObjectInputStream(tempExternalPeerSocket.getInputStream());
@@ -322,33 +322,33 @@ class Communication {
 					}
 				}
 				else if(received.task.equals("Connect To Peer")) {
-					System.out.println("Connecting to Peer Server");
+					if(testing){System.out.println("Connecting to Peer Server");}
 					Socket tempPeerSocket = new Socket(((InetSocketAddress) received.getDataObject()).getAddress(), ((InetSocketAddress) received.getDataObject()).getPort());
-					System.out.println("Connected to new peer server");
+					if(testing){System.out.println("Connected to new peer server");}
 					currentPlayer = new Player(tempPeerSocket);
-					System.out.println("New Player Created");
+					if(testing){System.out.println("New Player Created");}
 					ObjectOutputStream temp_peer_oos = new ObjectOutputStream(tempPeerSocket.getOutputStream());
 					ObjectInputStream temp_peer_ois = new ObjectInputStream(tempPeerSocket.getInputStream());
-					System.out.println("Streams Acquired");
+					if(testing){System.out.println("Streams Acquired");}
 					currentPlayer.setStreams(temp_peer_ois, temp_peer_oos);
-					System.out.println("Streams Set");
+					if(testing){System.out.println("Streams Set");}
 					currentPlayer.setPeerServerInetSocketAddress(new InetSocketAddress("localhost",tempPeerSocket.getPort()));
 					players.add(currentPlayer);
-					System.out.println("Player Added");
+					if(testing){System.out.println("Player Added");}
 					// Reply that you have connected
 					response.setTask("Finished Connecting");
 					this.sendMessageToObjectOutputStream(peer_oos, response);
 				}
-				System.out.println("Is Finished Meshing? " + Boolean.toString(received.task.equals("Finished Meshing")));
+				if(testing){System.out.println("Is Finished Meshing? " + Boolean.toString(received.task.equals("Finished Meshing")));}
 			}
 			// When server says finished meshing the function ends.
-			System.out.println("Peer Meshing Function Completed");
+			if(testing){System.out.println("Peer Meshing Function Completed");}
 			// After you have finished connecting listen again (Top of the while loop again)
 		}
 		catch(Exception e){
 			e.printStackTrace();
 		}
-		this.displayPlayers();
+		if(testing){this.displayPlayers();}
 	}
 
 	public void greetServer(){
@@ -403,7 +403,7 @@ class Communication {
 
 	public void sendMessage(Message message){
 		try {
-			System.out.println("Sending Server: " + message.task);
+			if(testing){System.out.println("Sending Server: " + message.task);}
 			oos.writeObject(message);
 		}
 		catch(IOException ex){
@@ -413,7 +413,7 @@ class Communication {
 
 	public void sendMessageToObjectOutputStream(ObjectOutputStream oos, Message message){
 		try {
-			System.out.println("Sending Peer: " + message.task);
+			if(testing){System.out.println("Sending Peer: " + message.task);}
 			oos.writeObject(message);
 		}
 		catch(IOException ex){
@@ -424,7 +424,7 @@ class Communication {
 	public Message receiveMessageFromObjectInputStream(ObjectInputStream ois){
 		try {
 			Message message = (Message) ois.readObject();
-			System.out.println("Peer Received: " + message.task);
+			if(testing){System.out.println("Peer Received: " + message.task);}
 			return message;
 		}
 		catch(ClassCastException ex){
@@ -443,7 +443,7 @@ class Communication {
 	public Message receiveMessage(){
 		try {
 			Message message = (Message) ois.readObject();
-			System.out.println("Server Response: " + message.task);
+			if(testing){System.out.println("Server Response: " + message.task);}
 			return message;
 		}
 		catch(ClassCastException ex){
