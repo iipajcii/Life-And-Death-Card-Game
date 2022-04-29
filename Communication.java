@@ -173,7 +173,6 @@ class Communication {
 			players.add(currentPlayer);
 			// The Players ObjectOutput and ObjectInput Streams are handled by the function below
 			this.greetPeerServer(currentPlayer.getObjectOutputStream(), currentPlayer.getObjectInputStream());
-			//-----
 			receiveMessageFromObjectInputStream(peer_ois);
 			receiveMessageFromObjectInputStream(peer_ois);
 			m = new Message();

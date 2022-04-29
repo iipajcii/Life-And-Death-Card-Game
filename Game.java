@@ -42,7 +42,7 @@ class Game {
 		else{
 			System.out.println("Player " + currentPlayerNumber + "'s Turn");
 		}
-		while(loopCounter < 9){
+		while(true){
 			if(isMyTurn()){
 				for(int counter = 0, count = 2; counter < count; counter++){
 					try {
@@ -51,8 +51,6 @@ class Game {
 						Socket temp_socket = peerServerSocket.accept();
 						if(testing){System.out.println("Temp Socket: " + temp_socket);}
 						int temp_socket_port = temp_socket.getPort();
-						// System.out.println("Temp Socket Port: " + temp_socket_port);
-						// Player player = this.getPlayerByPortNumber(temp_socket_port);
 						ObjectOutputStream temp_oos = new ObjectOutputStream(temp_socket.getOutputStream());
 						ObjectInputStream temp_ois = new ObjectInputStream(temp_socket.getInputStream());
 						//Receive Player Number
@@ -106,26 +104,8 @@ class Game {
 						System.out.println("Player " + this.currentPlayerNumber + " is skipping their turn.");
 					}
 				} while(!m.task.equals("Next Player"));
-				
 			}
-			// this.nextPlayer();
-			loopCounter++;
 		}
-		// while(true){
-		// 	if(isMyTurn()){
-		// 		System.out.println("It's My Turn");
-		// 		Message message = new Message();
-		// 		message.setTask("Player Number: " + currentPlayerNumber);
-		// 		this.nextPlayerBroadcast(message);
-		// 		this.nextPlayer();
-		// 	}
-		// 	else {
-		// 		Message message = new Message();
-		// 		currentPlayer = getCurrentPlayer();
-		// 		message = communication.receiveMessageFromObjectInputStream(currentPlayer.getObjectInputStream());
-		// 		this.nextPlayer();
-		// 	}
-		// }
 	}
 
 	public void end(){
@@ -260,43 +240,6 @@ class Game {
 		}
 	}
 
-	public void playCard(){
-		// System.out.println("What card do you want to play?");
-		// System.out.println("0. Cancel Playing Card");
-		// this.displayCards();
-
-		// int choice = -1;
-		// do {
-		// 	Scanner input = new Scanner(System.in);
-		// 	choice = input.nextInt();
-		// } while(choice < 0 || choice > cards.size());
-		// System.out.println("What player do you want to target?");
-		// System.out.println("0. Cancel Playing Card");
-		// for (int counter = 0, count = playerCount; counter < count ; counter++ ) {
-		// 	System.out.println((counter + 1) + ": Player " + (counter + 1));
-		// }		
-		// int playerChoice = -1;
-		// do {
-		// 	Scanner input = new Scanner(System.in);
-		// 	choice = input.nextInt();
-		// } while(choice < 0 || choice > cards.size());
-		// Card card = cards.get(choice - 1);
-		// cards.remove(card);
-		// System.out.println("Played Card: " + card.toString());
-
-		// Message m = new Message();
-		// m.setTask("Play Card");
-		// m.setDataObject(card);
-	}
-
-	public void skipTurn(){
-		//
-	}
-
-	public void leaveGame(){
-		//
-	}
-
 	public void displayPlayers(){
 		// ArrayList<Player> players = communication.getPlayers();
 		for (int counter = 0, count = portNumbers.length; counter < count ; counter++ ) {
@@ -323,24 +266,9 @@ class Game {
 	
 	public Player getPlayerByNumber(int num){
 		if(num == playerNumber){return null;}
-		// return this.getPlayerByPortNumber(portNumbers[num - 1]);
-		ArrayList<Player> players = communication.getPlayers();
-		ArrayList<Player> sortedPlayers = new ArrayList<Player>();
-		// portNumbers = new int[players.size()];
 		//Need functionality in getPlayerNumber to alter the PortNumberArray
 		getPlayerNumber();
-		// Arrays.sort(portNumbers);
-		// System.out.println(Arrays.toString(portNumbers));
 		return getPlayerByPortNumber(portNumbers[num - 1]);
-		// for(int counter = 0, count = players.size(); counter < count; counter++){
-		// 	for(int counter2 = 0, count2 = players.size(); counter2 < count2; counter2++){
-		// 		if(portNumbers[counter] == players.get(counter2).getPeerServerInetSocketAddress().getPort()){
-		// 			sortedPlayers.add(players.get(counter2));
-		// 			break;
-		// 		}
-		// 	}
-		// }
-		// return sortedPlayers.get(num - 1);
 	}
 
 	public Player getNextPlayer(){
@@ -419,8 +347,15 @@ class Game {
 					} while(playerChoice < 0 || playerChoice > playerCount);
 					if(playerChoice == 0){break;}
 					Card card = cards.get(cardChoice - 1);
+					//Removing the Card from the players hand
 					card.setPlayerNumber(playerChoice);
 					cards.remove(card);
+
+					//The player draws a new card
+					Card newCard = new Card();
+					newCard.randomizeCardValue();
+					cards.add(newCard);
+					
 					System.out.println("Played Card: " + card.toString());
 					Player p = getPlayerByNumber(playerChoice);
 					if(p != null){
@@ -433,34 +368,7 @@ class Game {
 					m.setTask("Play Card");
 					m.setDataObject(card);
 					done = true;
-					/*
-						System.out.println("What card do you want to play?");
-						System.out.println("0. Cancel Playing Card");
-						this.displayCards();
-
-						int choice = -1;
-						do {
-							Scanner input = new Scanner(System.in);
-							choice = input.nextInt();
-						} while(choice < 0 || choice > cards.size());
-						System.out.println("What player do you want to target?");
-						System.out.println("0. Cancel Playing Card");
-						for (int counter = 0, count = playerCount; counter < count ; counter++ ) {
-							System.out.println((counter + 1) + ": Player " + (counter + 1));
-						}		
-						int playerChoice = -1;
-						do {
-							Scanner input = new Scanner(System.in);
-							choice = input.nextInt();
-						} while(choice < 0 || choice > cards.size());
-						Card card = cards.get(choice - 1);
-						cards.remove(card);
-						System.out.println("Played Card: " + card.toString());
-
-						Message m = new Message();
-						m.setTask("Play Card");
-						m.setDataObject(card);
-					*/
+					
 				break;
 				case 2:
 					m.setTask("Skip Turn");
